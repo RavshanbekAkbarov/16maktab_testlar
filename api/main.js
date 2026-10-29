@@ -245,6 +245,17 @@ const adminRoutes = {
     };
   },
 
+  // Reyting Excel'da: har bir o'quvchi — bitta qator, har bir fan — bitta ustun
+  'GET rating.csv': async () => {
+    const { tests, rows } = await adminRoutes['GET rating']();
+    return csv('reyting.csv',
+      ['Oʻrin', 'Familiya Ism', 'Sinf', ...tests.map(t => `${t.title} (${t.total})`), 'Jami', 'Foiz'],
+      rows.map((r, i) => {
+        const max = tests.reduce((s, t) => s + t.total, 0);
+        return [i + 1, r.name, r.cls, ...tests.map(t => r.scores[t.id] ?? ''), r.sum, Math.round((r.sum / max) * 100)];
+      }));
+  },
+
   // Natijani o'chirish = qayta topshirishga ruxsat
   'POST results/delete': async b => { await db('DELETE', `results?id=eq.${enc(b.id)}`); return { ok: true }; },
 };
@@ -262,13 +273,19 @@ async function availableTest(st, id) {
   if (!t || !forClass(t, st)) fail('Test topilmadi yoki yopilgan');
   const done = await db('GET', `results?test_id=eq.${enc(t.id)}&student_id=eq.${enc(st.id)}&select=id`);
   if (done.length) fail('Siz bu testni topshirib boʻlgansiz');
+
+  // Navbat: o'quvchi ochiq fanlarni yaratilgan tartibda yechadi
+  const tests = (await db('GET', 'tests?active=is.true&order=created_at&select=id,title,cls')).filter(x => forClass(x, st));
+  const mine = new Set((await db('GET', `results?student_id=eq.${enc(st.id)}&select=test_id`)).map(r => r.test_id));
+  const next = tests.find(x => !mine.has(x.id));
+  if (next && next.id !== t.id) fail(`Avval "${next.title}" fanini yeching`);
   return t;
 }
 
 const studentRoutes = {
   'GET my-tests': async (b, url, session) => {
     const st = await me(session);
-    const tests = (await db('GET', 'tests?active=is.true&order=created_at.desc')).filter(t => forClass(t, st));
+    const tests = (await db('GET', 'tests?active=is.true&order=created_at')).filter(t => forClass(t, st));
     const results = await db('GET', `results?student_id=eq.${enc(st.id)}&select=test_id,correct,total,percent`);
     return tests.map(t => ({
       id: t.id, title: t.title, count: questionCount(t),

@@ -1,15 +1,19 @@
 // O'quvchi sahifasi: testlar ro'yxati -> test yechish -> natija
 
+// Fanlar navbat bilan: faqat birinchi topshirilmagan fanni boshlash mumkin
 async function showList() {
   const tests = await api('/api/my-tests');
-  view.innerHTML = `<div class="card"><h2>Testlar</h2><br>${tests.length ? `
+  const next = tests.find(t => !t.result);
+  view.innerHTML = `<div class="card"><h2>Fanlar</h2><br>${tests.length ? `
     <table>
-      <tr><th>Test</th><th>Savollar</th><th></th></tr>
-      ${tests.map(t => `<tr>
-        <td>${esc(t.title)}</td><td>${t.count}</td>
+      <tr><th>№</th><th>Fan</th><th>Savollar</th><th></th></tr>
+      ${tests.map((t, i) => `<tr>
+        <td>${i + 1}</td><td>${esc(t.title)}</td><td>${t.count}</td>
         <td>${t.result
-          ? `<span class="ok">Topshirilgan: ${t.result.correct}/${t.result.total} (${t.result.percent}%)</span>`
-          : `<button data-start="${t.id}">Boshlash</button>`}</td>
+          ? `<span class="ok">✓ ${t.result.correct}/${t.result.total} (${t.result.percent}%)</span>`
+          : t === next
+            ? `<button data-start="${t.id}">Boshlash</button>`
+            : '<span class="muted">Navbatda</span>'}</td>
       </tr>`).join('')}
     </table>` : '<p class="muted">Hozircha ochiq test yoʻq.</p>'}</div>`;
 }
@@ -18,6 +22,14 @@ view.onclick = e => {
   if (e.target.dataset.start) startTest(e.target.dataset.start);
   if (e.target.id === 'back') showList();
 };
+
+// Natijadan keyin: keyingi fan tugmasi yoki "hammasi tugadi"
+async function nextButton() {
+  const next = (await api('/api/my-tests')).find(t => !t.result);
+  return next
+    ? `<button data-start="${next.id}">Keyingi fan: ${esc(next.title)} →</button>`
+    : `<p class="ok">Barcha fanlar tugadi! 🎉</p><button id="back">Natijalarim</button>`;
+}
 
 async function startTest(id) {
   const t = await api('/api/test?id=' + id);
@@ -56,8 +68,9 @@ async function startTest(id) {
       <h2>${esc(t.title)}</h2>
       <div class="big">${r.percent}%</div>
       <p>Toʻgʻri javoblar: <b>${r.correct}</b> / ${r.total}</p>
-      <button id="back">Testlar roʻyxatiga qaytish</button>
+      ${await nextButton()}
     </div>`;
+    scrollTo(0, 0);
   };
 }
 
