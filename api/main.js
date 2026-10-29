@@ -26,10 +26,26 @@ const localDate = iso => new Date(iso).toLocaleString('sv-SE', { timeZone: 'Asia
 const byClassAndName = (a, b) =>
   String(a.cls).localeCompare(String(b.cls)) || String(a.last_name).localeCompare(String(b.last_name));
 
+// Javoblar shu ko'rinishda saqlanadi: [{ q: savol raqami, a: 'B' }, ...]
 function score(test, answers) {
-  const total = test.questions.length;
-  const correct = test.questions.filter((q, i) => answers[i] === q.answer).length;
-  return { correct, total, percent: Math.round((correct / total) * 100) };
+  const total = answers.length;
+  const correct = answers.filter(x => test.questions[x.q] && test.questions[x.q].answer === x.a).length;
+  return { correct, total, percent: total ? Math.round((correct / total) * 100) : 0 };
+}
+
+// O'quvchiga nechta savol beriladi
+const questionCount = t => t.pick || t.questions.length;
+
+// Har bir o'quvchiga o'z savollari va o'z tartibi.
+// Tasodif o'quvchi ID + test ID dan hisoblanadi (hash), shuning uchun
+// sahifa yangilansa ham o'sha o'quvchiga aynan o'sha savollar chiqadi.
+function questionOrder(t, studentId) {
+  const order = t.questions.map((_, i) => i);
+  if (t.type === 'pdf') return order; // PDF da tartib o'zgarmaydi
+  const key = i => crypto.createHash('sha256').update(`${t.id}:${studentId}:${i}`).digest('hex');
+  const keys = order.map(key);
+  order.sort((a, b) => keys[a].localeCompare(keys[b]));
+  return order.slice(0, questionCount(t));
 }
 
 // Excel to'g'ri ochishi uchun: BOM + nuqtali vergul
@@ -109,7 +125,10 @@ function cleanTest(b) {
   });
   if (!questions.length) fail('Kamida bitta savol boʻlsin');
   const pdf = type === 'pdf' ? (isFileUrl(b.pdf) ? b.pdf : fail('PDF faylni yuklang')) : '';
-  return { title, cls: String(b.cls || '').trim(), type, pdf, questions };
+  // Har bir o'quvchiga nechta savol (0 = hammasi). Savollar sonidan ko'p bo'lsa — hammasi.
+  let pick = type === 'questions' ? Math.max(0, parseInt(b.pick, 10) || 0) : 0;
+  if (pick >= questions.length) pick = 0;
+  return { title, cls: String(b.cls || '').trim(), type, pdf, questions, pick };
 }
 
 async function getTest(id) {
@@ -199,7 +218,7 @@ const adminRoutes = {
 
   // Jonli reyting: hozir ochiq turgan barcha testlar bo'yicha
   'GET rating': async () => {
-    const tests = await db('GET', 'tests?active=is.true&order=created_at&select=id,title,questions');
+    const tests = await db('GET', 'tests?active=is.true&order=created_at&select=id,title,questions,pick');
     if (!tests.length) return { tests: [], rows: [] };
     const ids = tests.map(t => `"${t.id}"`).join(',');
     const results = await db('GET', `results?test_id=in.(${enc(ids)})&select=*,students(first_name,last_name,cls)`);
@@ -220,7 +239,7 @@ const adminRoutes = {
     // Ko'p ball yuqorida; ball teng bo'lsa — oldinroq tugatgan yuqorida
     const rows = [...byStudent.values()].sort((a, b) => b.sum - a.sum || a.last.localeCompare(b.last));
     return {
-      tests: tests.map(t => ({ id: t.id, title: t.title, total: t.questions.length })),
+      tests: tests.map(t => ({ id: t.id, title: t.title, total: questionCount(t) })),
       rows: rows.map(r => ({ ...r, last: localDate(r.last) })),
     };
   },
@@ -251,17 +270,21 @@ const studentRoutes = {
     const tests = (await db('GET', 'tests?active=is.true&order=created_at.desc')).filter(t => forClass(t, st));
     const results = await db('GET', `results?student_id=eq.${enc(st.id)}&select=test_id,correct,total,percent`);
     return tests.map(t => ({
-      id: t.id, title: t.title, count: t.questions.length,
+      id: t.id, title: t.title, count: questionCount(t),
       result: results.find(r => r.test_id === t.id) || null,
     }));
   },
 
   // Testni beramiz, lekin to'g'ri javoblarsiz!
   'GET test': async (b, url, session) => {
-    const t = await availableTest(await me(session), url.searchParams.get('id'));
+    const st = await me(session);
+    const t = await availableTest(st, url.searchParams.get('id'));
     return {
       id: t.id, title: t.title, type: t.type, pdf: t.pdf,
-      questions: t.questions.map(q => ({ text: q.text || '', image: q.image || '', options: q.options || [] })),
+      questions: questionOrder(t, st.id).map(i => {
+        const q = t.questions[i];
+        return { text: q.text || '', image: q.image || '', options: q.options || [] };
+      }),
     };
   },
 
@@ -269,7 +292,8 @@ const studentRoutes = {
     const st = await me(session);
     const t = await availableTest(st, b.id);
     const sent = Array.isArray(b.answers) ? b.answers : [];
-    const answers = t.questions.map((_, i) => (LETTERS.includes(sent[i]) ? sent[i] : ''));
+    // k-o'rindagi javob o'quvchiga chiqqan k-savolga tegishli
+    const answers = questionOrder(t, st.id).map((q, k) => ({ q, a: LETTERS.includes(sent[k]) ? sent[k] : '' }));
     const s = score(t, answers);
     await db('POST', 'results', { id: newId(), test_id: t.id, student_id: st.id, answers, ...s });
     return s;

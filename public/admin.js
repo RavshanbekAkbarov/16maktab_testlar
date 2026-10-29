@@ -57,7 +57,7 @@ async function loadTests() {
   tests = await api('/api/tests');
   tTable.innerHTML = `<tr><th>Nomi</th><th>Sinf</th><th>Savollar</th><th>Turi</th><th>Holati</th><th></th></tr>` +
     tests.map(t => `<tr>
-      <td>${esc(t.title)}</td><td>${esc(t.cls) || 'Hammasi'}</td><td>${t.questions.length}</td>
+      <td>${esc(t.title)}</td><td>${esc(t.cls) || 'Hammasi'}</td><td>${t.questions.length}${t.pick ? ` (${t.pick} tadan)` : ""}</td>
       <td>${t.type === 'pdf' ? 'PDF' : 'Savollar'}</td>
       <td>${t.active ? '<span class="ok">Ochiq</span>' : '<span class="muted">Yopiq</span>'}</td>
       <td>
@@ -79,7 +79,7 @@ tTable.onclick = async e => {
 // ---------- Test muharriri ----------
 const emptyQuestion = () => ({ text: '', image: '', options: ['', '', '', ''], answer: '' });
 
-newTest.onclick = () => openEditor({ title: '', cls: '', type: 'questions', pdf: '', questions: [emptyQuestion()] });
+newTest.onclick = () => openEditor({ title: '', cls: '', type: 'questions', pdf: '', pick: 15, questions: [emptyQuestion()] });
 cancelEdit.onclick = () => (editor.hidden = true);
 
 function openEditor(test) {
@@ -87,6 +87,7 @@ function openEditor(test) {
   edHead.textContent = test.id ? 'Testni tahrirlash' : 'Yangi test';
   tTitle.value = test.title;
   tCls.value = test.cls;
+  tPick.value = test.pick || '';
   document.querySelector(`[name=tType][value=${test.type}]`).checked = true;
   if (test.type === 'questions') {
     test.questions.forEach(q => { q.options = q.options || ['', '', '', '']; q.text = q.text || ''; });
@@ -169,7 +170,7 @@ pdfKey.oninput = updateKeyCount;
 saveTest.onclick = async () => {
   const type = document.querySelector('[name=tType]:checked').value;
   const questions = type === 'pdf' ? keyLetters().map(answer => ({ answer })) : editing.questions;
-  await api('/api/tests/save', { ...editing, title: tTitle.value, cls: tCls.value, type, questions });
+  await api('/api/tests/save', { ...editing, title: tTitle.value, cls: tCls.value, type, questions, pick: tPick.value });
   editor.hidden = true;
   alert('Saqlandi. Oʻquvchilar koʻrishi uchun testni "Ochish" tugmasi bilan oching.');
   loadTests();

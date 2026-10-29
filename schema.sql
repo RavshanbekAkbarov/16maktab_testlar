@@ -15,6 +15,7 @@ create table tests (
   type       text not null,             -- 'questions' yoki 'pdf'
   pdf        text not null default '',
   questions  jsonb not null,            -- savollar va to'g'ri javoblar
+  pick       int not null default 0,    -- har o'quvchiga nechta savol (0 = hammasi)
   active     boolean not null default false,
   created_at timestamptz not null default now()
 );
