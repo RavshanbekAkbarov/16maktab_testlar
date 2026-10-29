@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Maktab test tizimi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="center">
+  <form id="form" class="card login">
+    <h1>Maktab test tizimi</h1>
+    <label>ID (login) <input name="login" required autofocus autocomplete="off"></label>
+    <label>Parol <input name="password" type="password" required></label>
+    <button>Kirish</button>
+    <p class="muted">ID va parolni oʻqituvchingizdan oling.</p>
+  </form>
+
+  <script src="common.js"></script>
+  <script>
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const r = await api('/api/login', { login: form.elements.login.value, password: form.elements.password.value });
+      location.href = r.role === 'admin' ? '/admin.html' : '/student.html';
+    };
+  </script>
+</body>
+</html>

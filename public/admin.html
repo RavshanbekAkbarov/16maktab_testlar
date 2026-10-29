@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Oʻqituvchi paneli</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="bar">
+    <b>Oʻqituvchi paneli</b>
+    <nav>
+      <button class="tab" data-tab="students">Oʻquvchilar</button>
+      <button class="tab" data-tab="tests">Testlar</button>
+      <button class="tab" data-tab="results">Natijalar</button>
+      <button class="tab" data-tab="rating">Reyting</button>
+    </nav>
+    <span>
+      <button class="link" onclick="logout()">Chiqish</button>
+    </span>
+  </header>
+
+  <main>
+    <!-- O'QUVCHILAR -->
+    <section id="students" hidden>
+      <div class="card no-print">
+        <h2>Oʻquvchi qoʻshish</h2><br>
+        <label>Sinf <input id="sCls" placeholder="7-A"></label>
+        <label>Familiya Ism — har bir qatorga bitta oʻquvchi
+          <textarea id="sText" rows="6" placeholder="Karimov Aziz&#10;Toshmatova Malika"></textarea>
+        </label>
+        <button id="sAdd">Qoʻshish</button>
+      </div>
+      <div class="card">
+        <div class="row">
+          <h2>Oʻquvchilar roʻyxati</h2>
+          <select id="sFilter"></select>
+          <a class="btn" href="/api/students.csv">Excel (CSV)</a>
+          <button onclick="print()">Chop etish</button>
+        </div>
+        <table id="sTable"></table>
+      </div>
+    </section>
+
+    <!-- TESTLAR -->
+    <section id="tests" hidden>
+      <div class="card">
+        <div class="row"><h2>Testlar</h2><button id="newTest">+ Yangi test</button></div>
+        <table id="tTable"></table>
+      </div>
+
+      <div class="card" id="editor" hidden>
+        <h2 id="edHead">Yangi test</h2><br>
+        <label>Test nomi <input id="tTitle" placeholder="7-sinf matematika, 1-chorak monitoring"></label>
+        <label>Sinf (boʻsh qoldirilsa — barcha sinflar uchun) <input id="tCls" placeholder="7-A"></label>
+        <div class="row">
+          <label class="inline"><input type="radio" name="tType" value="questions" checked> Savollarni oʻzim kiritaman</label>
+          <label class="inline"><input type="radio" name="tType" value="pdf"> PDF + javoblar kaliti</label>
+        </div>
+
+        <div id="qMode">
+          <p class="muted">Savol matn, rasm yoki ikkalasi boʻlishi mumkin. Variantlar rasmda boʻlsa, variant maydonlarini boʻsh qoldiring.
+            Toʻgʻri javob oldidagi doirachani belgilang.</p>
+          <div id="qList"></div>
+          <button id="addQ" class="secondary">+ Savol qoʻshish</button>
+        </div>
+
+        <div id="pdfMode" hidden>
+          <label>PDF fayl <input type="file" id="pdfFile" accept="application/pdf"></label>
+          <p id="pdfName" class="muted"></p>
+          <label>Javoblar kaliti — tartib boʻyicha harflar (masalan: ABCDA BCDAB)
+            <textarea id="pdfKey" rows="3"></textarea>
+          </label>
+          <p id="keyCount" class="muted"></p>
+        </div>
+
+        <br>
+        <div class="row">
+          <button id="saveTest">Saqlash</button>
+          <button id="cancelEdit" class="secondary">Bekor qilish</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- NATIJALAR -->
+    <section id="results" hidden>
+      <div class="card">
+        <div class="row">
+          <h2>Natijalar</h2>
+          <select id="rTest"></select>
+          <a class="btn" id="rCsv">Excel (CSV)</a>
+          <button onclick="print()">Chop etish</button>
+        </div>
+        <p id="rSummary"></p>
+        <table id="rTable"></table>
+      </div>
+    </section>
+
+    <!-- JONLI REYTING -->
+    <section id="rating" hidden>
+      <div class="card" id="ratingBox">
+        <div class="row">
+          <h2>🏆 Jonli reyting</h2>
+          <select id="gCls"></select>
+          <button id="fullBtn">Toʻliq ekran</button>
+        </div>
+        <p class="muted">Hozir ochiq turgan testlar boʻyicha. Har 5 soniyada yangilanadi.</p>
+        <table id="gTable" class="rating"></table>
+      </div>
+    </section>
+  </main>
+
+  <script src="common.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

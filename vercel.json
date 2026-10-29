@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/main?route=$1" }
+  ],
+  "crons": [
+    { "path": "/api/ping", "schedule": "0 3 * * *" }
+  ]
+}
