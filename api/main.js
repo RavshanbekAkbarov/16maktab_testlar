@@ -4,9 +4,10 @@
 const crypto = require('crypto');
 
 // Vercel sozlamalaridan (Environment Variables) olinadi
-const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-const KEY = process.env.SUPABASE_KEY || '';           // service_role / secret kalit — faqat serverda!
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+// .trim() — nusxalashda tushib qolgan probel va yangi qatorlarni olib tashlaydi
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
+const KEY = (process.env.SUPABASE_KEY || '').trim();           // secret kalit — faqat serverda!
+const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 const FILES_PREFIX = `${SUPABASE_URL}/storage/v1/object/public/files/`;
@@ -70,7 +71,7 @@ async function db(method, query, body) {
   });
   const text = await r.text();
   if (r.status === 409) fail('Bu yozuv allaqachon mavjud');
-  if (!r.ok) { console.error(method, query, r.status, text); fail('Bazada xatolik', 500); }
+  if (!r.ok) { console.error(method, query, r.status, text); fail(`Bazada xatolik (${r.status}): ${text.slice(0, 200)}`, 500); }
   return text ? JSON.parse(text) : null;
 }
 const enc = encodeURIComponent;
@@ -332,7 +333,15 @@ module.exports = async (req, res) => {
       return send(res, 200, { ok: true });
     }
     // Har kuni Vercel cron chaqiradi — Supabase "uxlab qolmasligi" uchun
-    if (route === 'ping') { await db('GET', 'tests?select=id&limit=1'); return send(res, 200, { ok: true }); }
+    if (route === 'ping') {
+      try {
+        await db('GET', 'tests?select=id&limit=1');
+        return send(res, 200, { ok: true });
+      } catch (e) {
+        // Sozlashda yordam berish uchun: aniq sababni ko'rsatamiz (kalitni emas!)
+        return send(res, 500, { ok: false, error: e.message, cause: e.cause ? String(e.cause.message || e.cause) : undefined, url: SUPABASE_URL });
+      }
+    }
 
     const session = readSession(req) || fail('Avval tizimga kiring', 401);
     if (route === 'me') {
